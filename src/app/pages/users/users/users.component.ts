@@ -1,3 +1,4 @@
+// Importación de módulos y componentes necesarios para el componente
 import { CommonModule } from '@angular/common';
 import { Component, ViewChild } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
@@ -26,11 +27,12 @@ import { FormBuilder, FormGroup } from '@angular/forms';
 import { MatOptionModule } from '@angular/material/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
 
+// Interfaz que define la estructura de un usuario
 export interface User {
   name: string;
 }
 
-
+// Decorador que define el componente
 @Component({
     selector: 'app-users',
     standalone: true,
@@ -55,15 +57,19 @@ export interface User {
     templateUrl: './users.component.html',
     styleUrls: ['./users.component.scss']
   })
-  export class UsersComponent {
-  
+
+// Clase del componente
+export class UsersComponent {
+
+    // Columnas que se mostrarán en la tabla
     displayedColumns: string[] = [
       'name',
       'email',
       'role',
       'action'
     ];
-  
+
+    // Migas de pan (breadcrumbs) para navegación
     breadscrums = [
       {
         title: 'Gestión de usuarios',
@@ -72,6 +78,7 @@ export interface User {
       },
     ];
 
+    // Función para mejorar el rendimiento en ngFor con trackBy
     trackByFn(index: number, item: any): any {
       return item?.id || index;
     }
@@ -81,147 +88,140 @@ export interface User {
           title: '',
         },
       ];
-      
-      //Tabla
-      dataSource = new MatTableDataSource<any>([]);
-      @ViewChild(MatPaginator, { static: true }) paginator!: MatPaginator;
-      
-      //Buscador
-      userFormSearchFilter!: FormGroup; //Variable que define un formulario reactivo (filtros)
-      usersList: any[] = []; //Variable global de lista de usuarios
-      
-      isLoading = false; //Se inicializa como falso al empezar
-      
-      //Valores iniciales de los filtros son indfeinidos
-      userDefaultFilterSearch: any = {
-        name: undefined,
-        email: undefined,
-      }
-      
-      constructor(
-        private readonly _formBuilder: FormBuilder, //Crea formularios
-        private readonly userService: UserService, //usar el servicio de usuarios
-        private readonly _snackBar: MatSnackBar,
-        private readonly dialogModel: MatDialog
-      ) { }
 
-      //inicializa el componente
-      ngOnInit(): void {
-        this.createUserFormSearchFilter(); //metodo de busqueda
-        this.getAllUserByAdministrator(); //metodo publico de administradores
-        this.handleUserFilterChange('name', 'name'); //filtros opcionales del nombre y email
-        this.handleUserFilterChange('email', 'email');
-      }
+    // Fuente de datos para la tabla
+    dataSource = new MatTableDataSource<any>([]);
 
-      private createUserFormSearchFilter() {
-        this.userFormSearchFilter = this._formBuilder.group({
-          name: [''],
-          email: ['']
+    // Acceso al paginador de Angular Material
+    @ViewChild(MatPaginator, { static: true }) paginator!: MatPaginator;
+
+    // Formulario para filtros de búsqueda
+    userFormSearchFilter!: FormGroup;
+
+    // Lista de usuarios
+    usersList: any[] = [];
+
+    // Controla el estado de carga
+    isLoading = false;
+
+    // Filtros por defecto
+    userDefaultFilterSearch: any = {
+      name: undefined,
+      email: undefined,
+    }
+
+    // Constructor que inyecta dependencias
+    constructor(
+      private readonly _formBuilder: FormBuilder,
+      private readonly userService: UserService,
+      private readonly _snackBar: MatSnackBar,
+      private readonly dialogModel: MatDialog
+    ) { }
+
+    // Método que se ejecuta al iniciar el componente
+    ngOnInit(): void {
+      this.createUserFormSearchFilter();
+      this.getAllUserByAdministrator();
+      this.handleUserFilterChange('name', 'name');
+      this.handleUserFilterChange('email', 'email');
+    }
+
+    // Crea el formulario reactivo para búsqueda
+    private createUserFormSearchFilter() {
+      this.userFormSearchFilter = this._formBuilder.group({
+        name: [''],
+        email: ['']
+      });
+    }
+
+    // Retorna el nombre del rol según el ID
+    getRoleName(rol_id: number): string {
+      switch (rol_id) {
+        case 1:
+          return 'Administrador';
+        case 2:
+          return 'Usuario';
+        default:
+          return 'Desconocido';
+      }
+    }
+
+    // Escucha los cambios en los filtros y actualiza los resultados
+    private handleUserFilterChange(controlName: string, filterKey: string) {
+      this.userFormSearchFilter.controls[controlName].valueChanges.pipe(
+        debounceTime(500),
+        distinctUntilChanged()
+      ).subscribe((value: any) => {
+        this.userDefaultFilterSearch[filterKey] = value;
+        console.log(this.userDefaultFilterSearch);
+        this.getAllUserByAdministrator({
+          ...this.userDefaultFilterSearch,
+          [filterKey]: value
         });
-      }
-      
-      //Obtiene el rol de los usuarios 1 administrador y 2 usuario
-      getRoleName(rol_id: number): string {
-        //usa la estructura del switch para evaluar el valor y retorne el nombre, no el rol_id
-        switch (rol_id) {
-          case 1:
-            return 'Administrador';
-          case 2:
-            return 'Usuario';
-          default:
-            return 'Desconocido';
+      });
+    }
+
+    // Obtiene todos los usuarios, puede incluir filtros
+    getAllUserByAdministrator(filters?: any): void {
+      this.isLoading = true;
+      this.userService.getAllUsersByAdministrator(filters).subscribe({
+        next: (response) => {
+          this.usersList = response.users;
+          this.dataSource.data = response.users;
+          this.dataSource.paginator = this.paginator;
+          this.isLoading = false;
+        },
+        error: () => {
+          this.isLoading = false;
         }
-      }
-      
-      //tiene una llave de filtro para la busqueda
-      private handleUserFilterChange(controlName: string, filterKey: string) {
-        this.userFormSearchFilter.controls[controlName].valueChanges.pipe(
-          debounceTime(500), //tiempo de espera sin cambios antes de emitir cualquier valor
-          distinctUntilChanged() //emite el valor si es diferente al anterior
-        ).subscribe((value: any) => {
-          //nuevo valor de la nueva busqueda
-          this.userDefaultFilterSearch[filterKey] = value;
-          console.log(this.userDefaultFilterSearch);
-          //carga los usuarios que se necesitan para la busqueda del filtro
-          this.getAllUserByAdministrator({ 
-            ...this.userDefaultFilterSearch, 
-            [filterKey]: value 
-          });
-        });
-      }
-      
+      });
+    }
 
-      getAllUserByAdministrator(filters?: any): void {
-        this.isLoading = true;
-        //Le damos la posibilidad de tener filtros de busqueda
-        this.userService.getAllUsersByAdministrator(filters).subscribe({
-            //Recibe los datos cuando esten disponibles
-          next: (response) => {
-            this.usersList = response.users;
-            this.dataSource.data = response.users;
-            this.dataSource.paginator = this.paginator;
-            this.isLoading = false;
-          },
-          error: () => {
-            this.isLoading = false;
-          }
-        });
-      }
+    // Abre el modal para crear usuarios
+    openModalCreateUser(): void {
+      const dialogRef = this.dialogModel.open(ModalCreateUserComponent, {
+        minWidth: '300px',
+        maxWidth: '1000px',
+        width: '840px',
+        disableClose: true,
+      });
 
-      //los usamos para cuando se abran los modales al crear los usuarios
-      openModalCreateUser(): void {
-        //guarda la referencia del modal en dialogref
-        const dialogRef = this.dialogModel.open(ModalCreateUserComponent, {
-          minWidth: '300px', //ancho minimo
-          maxWidth: '1000px', //ancho maximo
-          width: '840px', //ancho inicial fijo
-          disableClose: true, //no permite cerrar el modal haciendo click afuera de el o esc (debe completar el modal)
-        });
-      
-        //se subscribe para ejecutar una funcion al cerrar el modal
-        dialogRef.afterClosed().subscribe(result => {
-          //si todo sale de manera exitosa se crea el usuario
-          if (result) {
-            this.getAllUserByAdministrator();
-          }
-        });
-      }
+      dialogRef.afterClosed().subscribe(result => {
+        if (result) {
+          this.getAllUserByAdministrator();
+        }
+      });
+    }
 
-      //madal que actualiza los usuarios
-      openModalUpdateUsers(userInformation: any): void {
-        const dialogRef = this.dialogModel.open(ModalEditUsersComponent, {
-          minWidth: '300px',
-          maxWidth: '1000px',
-          width: '840px',
-          disableClose: true,
-          data: { user: userInformation }
-        });
-      
-        dialogRef.afterClosed().subscribe(result => {
-          if (result) {
-            this.getAllUserByAdministrator();
-          }
-        });
-      }
+    // Abre el modal para actualizar usuarios
+    openModalUpdateUsers(userInformation: any): void {
+      const dialogRef = this.dialogModel.open(ModalEditUsersComponent, {
+        minWidth: '300px',
+        maxWidth: '1000px',
+        width: '840px',
+        disableClose: true,
+        data: { user: userInformation }
+      });
 
-      //borra un usuario
-      deleteUser(userId: number): void {
-        //llama al metodo dentro del userService que elimina el usuario dandole el id
-        this.userService.deleteUser(userId).subscribe({
-          //despues de elminar al usuario enviara un mensaje
-          next: (response) => {
-            //snackBar viene de angular material como mensaje de respuesta
-            this._snackBar.open(response.message, 'Cerrar', { duration: 5000 });
-            this.getAllUserByAdministrator();
-          },
-          //parametrizamos un caso de error
-          error: (error) => {
-            const errorMessage = error.error?.message || 'Error al eliminar el usuario';
-            this._snackBar.open(errorMessage, 'Cerrar', { duration: 5000 });
-          }
-        });
-      }
-      
-      
-      
-  }
+      dialogRef.afterClosed().subscribe(result => {
+        if (result) {
+          this.getAllUserByAdministrator();
+        }
+      });
+    }
+
+    // Elimina un usuario dado su ID
+    deleteUser(userId: number): void {
+      this.userService.deleteUser(userId).subscribe({
+        next: (response) => {
+          this._snackBar.open(response.message, 'Cerrar', { duration: 5000 });
+          this.getAllUserByAdministrator();
+        },
+        error: (error) => {
+          const errorMessage = error.error?.message || 'Error al eliminar el usuario';
+          this._snackBar.open(errorMessage, 'Cerrar', { duration: 5000 });
+        }
+      });
+    }
+
+}

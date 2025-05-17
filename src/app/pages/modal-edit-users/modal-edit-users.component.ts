@@ -13,85 +13,96 @@ import { UserService } from 'app/services/users/users.service';
 @Component({
   selector: 'app-modal-edit-users',
   standalone: true,
-  imports: [CommonModule, FormsModule, MatDialogModule, MatButtonModule, MatSelectModule, MatIconModule, MatFormFieldModule,
-            MatInputModule, MatDialogActions, MatDialogClose, MatDialogTitle, MatDialogContent, ReactiveFormsModule],
+  imports: [
+    CommonModule,
+    FormsModule,
+    MatDialogModule,
+    MatButtonModule,
+    MatSelectModule,
+    MatIconModule,
+    MatFormFieldModule,
+    MatInputModule,
+    MatDialogActions,
+    MatDialogClose,
+    MatDialogTitle,
+    MatDialogContent,
+    ReactiveFormsModule
+  ],
   templateUrl: './modal-edit-users.component.html',
   styleUrls: ['./modal-edit-users.component.scss']
 })
 export class ModalEditUsersComponent {
-  //Nos permite hacer uso del formulario reactivo
+  // Formulario reactivo para editar usuario
   formUpdateUsers!: FormGroup;
-  //Presenta el mismo formulario que tenia anteriormente para editarlo
+  // Lista de administradores para mostrar en el select
   administratorsValues: any[] = [];
 
   constructor(
-    @Inject(MAT_DIALOG_DATA) public data: any,
-    private readonly _formBuilder: FormBuilder, //Permite construir el formulario reactivo
-    private readonly _snackBar: MatSnackBar, //Muestra los mensajes emergentes
-    private readonly _userService: UserService, //Invocamos el servicio que necesitamos para editar los usuairos
-    private readonly dialogRef: MatDialogRef<ModalEditUsersComponent> //Cierra el modal
+    @Inject(MAT_DIALOG_DATA) public data: any, // Datos recibidos al abrir el modal (usualmente el usuario a editar)
+    private readonly _formBuilder: FormBuilder, // Constructor para formularios reactivos
+    private readonly _snackBar: MatSnackBar, // Servicio para mostrar mensajes emergentes (snackbars)
+    private readonly _userService: UserService, // Servicio para llamar a la API relacionada a usuarios
+    private readonly dialogRef: MatDialogRef<ModalEditUsersComponent> // Referencia para cerrar el modal
   ) {
-    this.updateFormUsers(); //Inicia y crea el fomulario vacio para los administradores
-    this.getAllAdministrator();
+    this.updateFormUsers();  // Inicializa el formulario vacío
+    this.getAllAdministrator(); // Obtiene la lista de administradores
   }
 
-  //Verifica si el usuario tiene datos almacenados para cargarlos
+  // Se ejecuta al inicializar el componente
   ngOnInit() {
-    if (this.data?.user) {
-      this.loadUserData(this.data.user);
+    if (this.data?.user) { // Si hay datos de usuario (para editar)
+      this.loadUserData(this.data.user); // Carga los datos del usuario en el formulario
     }
   }
 
-  //Carga el formulario reactivo con los campos que creamos en el create-user
+  // Crea el formulario reactivo con validaciones para cada campo
   updateFormUsers() {
     this.formUpdateUsers = this._formBuilder.group({
-      nombre: ['', Validators.required], //validator.required hace la validacion para cada uno de los campos ya que son obligatorios
-      email: ['', [Validators.required, Validators.email]], //valida el formato valido para el email
-      rol_id: ['', Validators.required],
-      administrador_id: ['', Validators.required]
+      nombre: ['', Validators.required], // Nombre obligatorio
+      email: ['', [Validators.required, Validators.email]], // Email obligatorio y formato válido
+      rol_id: ['', Validators.required], // Rol obligatorio
+      administrador_id: ['', Validators.required] // Administrador obligatorio
     });
   }
   
-  //Carga los datos de un usuario existente en el formulario reactivo
+  // Llena el formulario con la información del usuario que se quiere editar
   loadUserData(user: any) {
-    this.formUpdateUsers.patchValue({ //Asigna los valores validados al campo de cada uno
+    this.formUpdateUsers.patchValue({ // Rellena los controles con valores
       nombre: user.nombre,
       email: user.email,
-      rol_id: String(user.rol_id), //Pasa el rol_id a tipo string
+      rol_id: String(user.rol_id), // Convierte rol_id a string (para el select)
       administrador_id: user.administrador_id
     });
   }
 
-  //consulta del userService para mostrar los administradores
+  // Consulta para obtener todos los administradores desde el servicio
   getAllAdministrator() {
     this._userService.getAllAdministrator().subscribe({
       next: (res) => {
-        this.administratorsValues = res.users; //Guarda los administradores consultados para listarlos
+        this.administratorsValues = res.users; // Guarda la lista para usarla en el select
       },
       error: (err) => {
-        console.error(err);
+        console.error(err); // Log en caso de error
       }
     });
   }
   
-  //Se activa al seleccionar la edicion del usuario
+  // Método que se ejecuta para enviar la actualización del usuario
   updateUsers() {
-    if (this.formUpdateUsers.valid) { //Valida los campos de los usuarios
-      const userData = this.formUpdateUsers.value;
-      const userId = this.data?.user?.id; //Pasa el id del usuario para poder confirmar la edicion de este
+    if (this.formUpdateUsers.valid) { // Verifica que el formulario esté válido
+      const userData = this.formUpdateUsers.value; // Obtiene los datos del formulario
+      const userId = this.data?.user?.id; // Obtiene el id del usuario que se está editando
       
-      //Llama el userService pasandole el userId y el userData (Datos nuevos)
+      // Llama al servicio para actualizar usuario, enviando id y datos nuevos
       this._userService.updateUser(userId, userData).subscribe({
-        //Si es exitoso
         next: (response) => {
-          this._snackBar.open(response.message, 'Cerrar', { duration: 5000 }); //Notifica el mensaje de respuesta correcto
-          this.dialogRef.close(true); //Cierra el modal
+          // Si la actualización es exitosa, muestra mensaje y cierra modal con resultado true
+          this._snackBar.open(response.message, 'Cerrar', { duration: 5000 });
+          this.dialogRef.close(true);
         },
-        //En caso de error
         error: (error) => {
-          //Muestra mensaje personalizado sobre el error
+          // En caso de error, muestra mensaje personalizado o genérico
           const errorMessage = error.error?.result || 'Ocurrió un error inesperado. Por favor, intenta nuevamente.';
-          //Notifica el mensaje de respuesta erronea
           this._snackBar.open(errorMessage, 'Cerrar', { duration: 5000 });
         }
       });
